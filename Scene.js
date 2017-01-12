@@ -8,7 +8,10 @@ const {Component} = React;
 
 class Scene extends Component {
 
-  onDrop = files => {
+  onDrop = (files, rejected, e) => {
+
+    console.log(e.dataTransfer.items[0].webkitGetAsEntry());
+
     const mtls = files.filter(f => f.name.endsWith(".mtl"));
     const objs = files.filter(f => f.name.endsWith(".obj"));
 
@@ -26,23 +29,23 @@ class Scene extends Component {
     });*/
     objs.forEach(o => {
       const name = o.name.split(".")[0];
-      console.log(name, mtls);
       const m = mtls.find(m => m.name.startsWith(name));
       if (m) {
         mtlLoader.load(m, materials => {
           materials.preload();
           objLoader.setMaterials(materials);
           objLoader.load(o, mesh => {
-            mesh.position.z = this.camera.position.z - 10;
-            mesh.position.y = this.camera.position.y;
+            mesh.scale.set(0.6, 0.6, 0.6);
+            mesh.position.x = this.camera.position.x + (Math.random() * 6) - 3;
+            //mesh.position.y = this.camera.position.y - 10;
+            mesh.position.z = this.camera.position.z - 5 + (Math.random() * 3);
             this.scene.add(mesh);
           });
         });
       }
     });
 
-    this.camera.position.z += 4;
-    this.camera.position.y -= Math.random() * 2 + 1;
+    this.camera.position.z += 8;
   }
 
   componentDidMount () {
@@ -50,7 +53,7 @@ class Scene extends Component {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
     this.renderer = new THREE.WebGLRenderer();
-    this.renderer.setSize(400, 300);
+    this.renderer.setSize(600, 400);
 
     dom.appendChild(this.renderer.domElement);
     this.setup();
@@ -99,7 +102,7 @@ class Scene extends Component {
   }
 
   render () {
-    return <Dropzone style={{border: 0}} onDrop={this.onDrop}>
+    return <Dropzone disableClick style={{border: 0}} onDrop={this.onDrop}>
       <div ref="scene"></div>
     </Dropzone>;
   }

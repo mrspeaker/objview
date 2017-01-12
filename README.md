@@ -19,3 +19,5 @@ Drop a .mtl and .obj file
 * Place randomly
 * Click/move obj
 * Save
+* Drop folder
+* Show obj without material
