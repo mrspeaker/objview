@@ -2,9 +2,9 @@
  * @author mrdoob / http://mrdoob.com/
  */
 
-const THREE = require("three");
+import * as THREE from "three";
 
-DDSLoader = function () {
+const DDSLoader = function () {
 
 	this._parser = DDSLoader.parse;
 
@@ -270,4 +270,4 @@ DDSLoader.parse = function ( buffer, loadMipmaps ) {
 
 };
 
-module.exports = DDSLoader;
+export default DDSLoader;
