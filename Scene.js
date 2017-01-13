@@ -9,6 +9,12 @@ const {Component} = React;
 
 class Scene extends Component {
 
+  mats = new Map();
+
+  mtlLoader = new MTLLoader();
+  objLoader = new OBJLoader();
+
+
   onDrop = (files, rejected, e) => {
 
     console.log(e.dataTransfer.items[0].webkitGetAsEntry());
@@ -16,37 +22,56 @@ class Scene extends Component {
     const mtls = files.filter(f => f.name.endsWith(".mtl"));
     const objs = files.filter(f => f.name.endsWith(".obj"));
 
-    const mtlLoader = new MTLLoader();
-    const objLoader = new OBJLoader();
-
-    //mtls.forEach(m => mtlLoader.load(m, materials => {
-//      materials.preload();
-  //  }));
-
-    /*const load = (name, cb) => mtlLoader.load(name + ".mtl", materials => {
-      materials.preload();
-      objLoader.setMaterials(materials);
-      objLoader.load(name + ".obj", mesh => cb(mesh));
-    });*/
-    objs.forEach(o => {
-      const name = o.name.split(".")[0];
-      const m = mtls.find(m => m.name.startsWith(name));
-      if (m) {
-        mtlLoader.load(m, materials => {
+    // Load materials
+    Promise.all(
+      mtls.map(m => new Promise(res => {
+        const name = m.name.split(".")[0];
+        if (this.mats.has(name)) {
+          return res();
+        }
+        this.mtlLoader.load(m, materials => {
           materials.preload();
-          objLoader.setMaterials(materials);
-          objLoader.load(o, mesh => {
-            mesh.scale.set(0.6, 0.6, 0.6);
-            mesh.position.x = this.camera.position.x + (Math.random() * 6) - 3;
-            //mesh.position.y = this.camera.position.y - 10;
-            mesh.position.z = this.camera.position.z - 6 + (Math.random() * 3);
-            this.scene.add(mesh);
-          });
+          this.mats.set(name, materials);
+          res();
         });
-      }
-    });
+      }))
+    )
+    .then(
+      // Load meshes
+      () => objs.forEach(o => this.loadObj(o))
+    );
+
+
 
     this.camera.position.z += 4;
+  }
+
+  loadObj (o) {
+    const name = o.name.split(".")[0];
+    if (!this.mats.has(name)) {
+      return;
+    }
+    const materials = this.mats.get(name);
+    this.objLoader.setMaterials(materials);
+    this.objLoader.load(o, mesh => {
+      // Compute bounding
+      mesh.traverse(child => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.computeBoundingBox();
+        }
+      });
+      mesh.scale.set(0.6, 0.6, 0.6);
+      mesh.position.x = this.camera.position.x + (Math.random() * 6) - 3;
+      //mesh.position.y = this.camera.position.y - 10;
+      mesh.position.z = this.camera.position.z - 6 + (Math.random() * 3);
+      this.scene.add(mesh);
+
+      //var bbox = new THREE.Box3().setFromObject(mesh);
+      //const bbox = mesh.children[0].geometry.boundingBox;
+      //console.log("bbox", bbox, bbox.max.z - bbox.min.z);
+      const helper = new THREE.BoxHelper(mesh, 0xff0000);
+      this.scene.add(helper);
+    });
   }
 
   componentDidMount () {
