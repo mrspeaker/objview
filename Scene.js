@@ -81,7 +81,7 @@ class Scene extends Component {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
     this.camera.position.y = 2;
-    this.renderer = new THREE.WebGLRenderer();
+    this.renderer = new THREE.WebGLRenderer({antialias: true});
     this.renderer.setSize(parent.clientWidth - 50, parent.offsetHeight - 50);
 
     dom.appendChild(this.renderer.domElement);
