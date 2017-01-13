@@ -13,7 +13,10 @@ class Editor extends Component {
           {this.props.children}
         </div>
         <nav style={{flex: "0 0 9em", order: -1, backgroundColor: "#ccc"}}>
-          ...
+          <div>sidebar</div>
+          <textarea
+            style={{width: 100, fontSize: 6}}
+            value={JSON.stringify(this.props.state)} />
         </nav>
       </div>
     </div>;

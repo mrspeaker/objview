@@ -6,14 +6,13 @@ import MTLLoader from "./vendor/MTLLoader";
 import EditorControls from "./vendor/EditorControls";
 
 const {Component} = React;
+const filename = name => name.split(".")[0];
+
+const mtlLoader = new MTLLoader();
+const objLoader = new OBJLoader();
+const mats = new Map();
 
 class Scene extends Component {
-
-  mats = new Map();
-
-  mtlLoader = new MTLLoader();
-  objLoader = new OBJLoader();
-
 
   onDrop = (files, rejected, e) => {
 
@@ -22,55 +21,58 @@ class Scene extends Component {
     const mtls = files.filter(f => f.name.endsWith(".mtl"));
     const objs = files.filter(f => f.name.endsWith(".obj"));
 
-    // Load materials
-    Promise.all(
-      mtls.map(m => new Promise(res => {
-        const name = m.name.split(".")[0];
-        if (this.mats.has(name)) {
-          return res();
-        }
-        this.mtlLoader.load(m, materials => {
-          materials.preload();
-          this.mats.set(name, materials);
-          res();
-        });
+    // Load materials then object, and add to scene
+    Promise.all(mtls.map(::this.loadMtl))
+      .then(() => Promise.all(objs.map(::this.loadObj)))
+      .then(meshs => meshs.map(mesh => {
+        this.scene.add(mesh);
+        this.scene.add(new THREE.BoxHelper(mesh, 0xff0000));
+        return mesh;
       }))
-    )
-    .then(
-      // Load meshes
-      () => objs.forEach(o => this.loadObj(o))
-    );
-
-
+      .then(::this.serialize);
 
     this.camera.position.z += 4;
   }
 
-  loadObj (o) {
-    const name = o.name.split(".")[0];
-    if (!this.mats.has(name)) {
+  serialize () {
+    this.props.onSerialize(this.scene.toJSON());
+  }
+
+
+  loadMtl (m) { // : File => Promise[Materials]
+    return new Promise(res => {
+      const name = filename(m.name);
+      if (mats.has(name)) {
+        return res(mats.get(name));
+      }
+      mtlLoader.load(m, materials => {
+        materials.preload();
+        mats.set(name, materials);
+        res(materials);
+      });
+    });
+  }
+
+  loadObj (o) { // : File => Promise[Mesh]
+    const name = filename(o.name);
+    if (!mats.has(name)) {
       return;
     }
-    const materials = this.mats.get(name);
-    this.objLoader.setMaterials(materials);
-    this.objLoader.load(o, mesh => {
-      // Compute bounding
-      mesh.traverse(child => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.computeBoundingBox();
-        }
-      });
-      mesh.scale.set(0.6, 0.6, 0.6);
-      mesh.position.x = this.camera.position.x + (Math.random() * 6) - 3;
-      //mesh.position.y = this.camera.position.y - 10;
-      mesh.position.z = this.camera.position.z - 6 + (Math.random() * 3);
-      this.scene.add(mesh);
+    objLoader.setMaterials(mats.get(name));
 
-      //var bbox = new THREE.Box3().setFromObject(mesh);
-      //const bbox = mesh.children[0].geometry.boundingBox;
-      //console.log("bbox", bbox, bbox.max.z - bbox.min.z);
-      const helper = new THREE.BoxHelper(mesh, 0xff0000);
-      this.scene.add(helper);
+    return new Promise(res => {
+      objLoader.load(o, mesh => {
+        // Compute bounding
+        mesh.traverse(child => {
+          if (child instanceof THREE.Mesh) {
+            child.geometry.computeBoundingBox();
+          }
+        });
+        mesh.scale.set(0.6, 0.6, 0.6);
+        mesh.position.x = this.camera.position.x + (Math.random() * 6) - 3;
+        mesh.position.z = this.camera.position.z - 6 + (Math.random() * 3);
+        res(mesh);
+      });
     });
   }
 
@@ -86,6 +88,8 @@ class Scene extends Component {
 
     dom.appendChild(this.renderer.domElement);
     this.setup();
+    this.serialize();
+
     this.tick = this.tick.bind(this);
     this.tick();
   }
@@ -96,13 +100,12 @@ class Scene extends Component {
     const cube = new THREE.Mesh(geometry, material);
     cube.rotation.z = Math.PI / 3;
     cube.rotation.x = Math.PI / 3;
-    cube.position.y = -4;
+    //cube.position.y = -4;
     this.scene.add(cube);
-    this.camera.position.z = 2;
+    this.camera.position.z = 5;
     this.cube = cube;
 
     this.lightScene();
-
     this.controls = new EditorControls(cube);
   }
 
