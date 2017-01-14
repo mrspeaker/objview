@@ -4,6 +4,7 @@ import Dropzone from "react-dropzone";
 import OBJLoader from "./vendor/OBJLoader";
 import MTLLoader from "./vendor/MTLLoader";
 import EditorControls from "./vendor/EditorControls";
+import KeyControls from "./KeyControls";
 
 const {Component} = React;
 const filename = name => name.split(".")[0];
@@ -13,6 +14,11 @@ const objLoader = new OBJLoader();
 const mats = new Map();
 
 class Scene extends Component {
+
+  constructor () {
+    super();
+    this.keys = new KeyControls();
+  }
 
   onDrop = (files, rejected, e) => {
 
@@ -26,7 +32,21 @@ class Scene extends Component {
       .then(() => Promise.all(objs.map(::this.loadObj)))
       .then(meshs => meshs.map(mesh => {
         this.scene.add(mesh);
-        this.scene.add(new THREE.BoxHelper(mesh, 0xff0000));
+        //const bh = new THREE.BoxHelper(mesh, 0xff0000);
+        //this.scene.add(bh);
+
+        const bb = mesh.children[0].geometry.boundingBox;
+        const w = bb.min.x - bb.max.x;
+        //console.log(w, bh);
+
+        for (var i = 0; i < 3; i++) {
+          const two = mesh.clone();
+          two.position.x -= w * (i + 1) * two.scale.x;//i * (w * 0.75);
+          this.scene.add(two);
+          //const bh = new THREE.BoxHelper(two, 0xffff00);
+          //this.scene.add(bh);
+
+        }
         return mesh;
       }))
       .then(::this.serialize);
@@ -107,6 +127,13 @@ class Scene extends Component {
 
     this.lightScene();
     this.controls = new EditorControls(cube);
+
+    const ground = new THREE.PlaneBufferGeometry(32, 32, 32);
+    const grass = new THREE.MeshLambertMaterial({color: 0x006600});
+    const mesh = new THREE.Mesh(ground, grass);
+    mesh.rotation.x = - Math.PI / 2;
+    mesh.position.y = 0;
+    this.scene.add(mesh);
   }
 
   lightScene () {
@@ -130,6 +157,26 @@ class Scene extends Component {
   tick () {
     this.cube.rotation.x += 0.01;
     this.cube.rotation.z += 0.01;
+
+    const speed = 0.1;
+    if (this.keys.isDown("LEFT")) {
+      this.camera.position.x -= speed;
+    }
+    if (this.keys.isDown("RIGHT")) {
+      this.camera.position.x += speed;
+    }
+    if (this.keys.isDown("FORWARD")) {
+      this.camera.position.z -= speed;
+    }
+    if (this.keys.isDown("BACKWARD")) {
+      this.camera.position.z += speed;
+    }
+    if (this.keys.isDown("UP")) {
+      this.camera.position.y += speed;
+    }
+    if (this.keys.isDown("DOWN")) {
+      this.camera.position.y -= speed;
+    }
 
     this.renderer.render(this.scene, this.camera);
     requestAnimationFrame(this.tick);
